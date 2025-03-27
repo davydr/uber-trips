@@ -1,38 +1,36 @@
-const fs = require('fs');
-const puppeteer = require('puppeteer');
-const { getChromePath } = require('./chrome-path');
+const fs = require("fs");
+const path = require("path");
+const { getBrowser } = require("./login-helper");
 
-(async () => {
-  const url = process.argv[2];
-  if (!url) {
-    console.error('No URL provided');
-    process.exit(1);
-  }
+const delay = ms => new Promise(res => setTimeout(res, ms));
 
-  const browser = await puppeteer.launch({
-    executablePath: getChromePath(),
-    userDataDir: './user-data', // persists session like login-helper
-    headless: 'new'
-  });
-
+async function saveTrips(urls) {
+  const browser = await getBrowser();
   const page = await browser.newPage();
 
-  // Load cookies if available
-  if (fs.existsSync('cookies.json')) {
-    const cookies = JSON.parse(fs.readFileSync('cookies.json', 'utf8'));
-    await page.setCookie(...cookies);
-    await page.waitForTimeout(1000); // allow cookies to settle
-  } else {
-    console.warn('⚠️ cookies.json not found. Are you logged in?');
+  for (const url of urls) {
+    if (!url.includes("/trip")) continue; // filter bad urls
+
+    try {
+      await page.goto(url, { waitUntil: "networkidle2" });
+
+      const id = url.split("/").pop();
+      const filename = path.join(__dirname, "output", `${id}.pdf`);
+
+      await page.pdf({ path: filename, format: "A4" });
+      console.log(`✅ Saved PDF for: ${url}`);
+
+      // random delay 2–4 seconds
+      const wait = 2000 + Math.random() * 2000;
+      await delay(wait);
+    } catch (err) {
+      console.error(`❌ Error on ${url}:`, err.message);
+    }
   }
 
-  await page.goto(url, { waitUntil: 'networkidle2' });
-
-  const filename = `output/uber-trip-${new Date().toISOString().replace(/[:]/g, '-')}.pdf`;
-  await page.pdf({ path: filename, format: 'A4' });
-
-  console.log(`✅ Saved PDF: ${filename}`);
   await browser.close();
-})();
+}
+
+module.exports = saveTrips;
 
 

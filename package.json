@@ -1,0 +1,12 @@
+{
+  "name": "uber-trip-manager",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^27.1.0",
+    "puppeteer": "^21.3.8"
+  }
+}

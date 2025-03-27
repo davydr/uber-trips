@@ -6,7 +6,7 @@ function getChromePath() {
   throw new Error('Unsupported OS');
 }
 // chrome-path.js
-module.exports = function () {
+module.exports = () => {
   return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 };
 

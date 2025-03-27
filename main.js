@@ -34,18 +34,6 @@ ipcMain.on('save-trips', (event, urls) => {
     console.log(stdout || stderr);
   });
 });
-ipcMain.on('gather-urls', (event, month, year) => {
-  console.log(`📆 Gathering URLs for: ${month}/${year}`);
-  const command = `node gather-urls.js ${month} ${year}`;
-
-  exec(command, (err, stdout, stderr) => {
-    if (err) {
-      console.error("❌ Failed to gather URLs:", err);
-    } else {
-      console.log(stdout || stderr);
-    }
-  });
-});
 
 
 

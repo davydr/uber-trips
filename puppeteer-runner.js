@@ -1,36 +1,66 @@
+const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const path = require("path");
-const { getBrowser } = require("./login-helper");
 
-const delay = ms => new Promise(res => setTimeout(res, ms));
+const cookiesPath = path.join(__dirname, "user-data", "cookies.json");
+const chromePath = require("./chrome-path.js")();
 
-async function saveTrips(urls) {
-  const browser = await getBrowser();
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+(async () => {
+  const urlArg = process.argv[2];
+  if (!urlArg) {
+    console.error("❌ No URLs provided.");
+    process.exit(1);
+  }
+
+  const urls = [...new Set(urlArg.split(",").filter(u => u.includes("/earnings/trips/")))];
+  console.log(`🔗 Found ${urls.length} trip URLs`);
+
+  const browser = await puppeteer.launch({
+    headless: "new",
+    executablePath: chromePath,
+    userDataDir: path.join(__dirname, "user-data"),
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+
   const page = await browser.newPage();
 
+  if (fs.existsSync(cookiesPath)) {
+    const cookies = JSON.parse(fs.readFileSync(cookiesPath, "utf-8"));
+    await page.setCookie(...cookies);
+    console.log("🍪 Cookies loaded");
+  } else {
+    console.warn("⚠️ No cookies found.");
+  }
+
+  const outputDir = path.join(__dirname, "output");
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir);
+  }
+
   for (const url of urls) {
-    if (!url.includes("/trip")) continue; // filter bad urls
-
     try {
-      await page.goto(url, { waitUntil: "networkidle2" });
+      console.log(`📄 Visiting: ${url}`);
+      await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-      const id = url.split("/").pop();
-      const filename = path.join(__dirname, "output", `${id}.pdf`);
+      // Delay 3–7 seconds between trips to avoid detection
+      const delay = Math.floor(Math.random() * 4000) + 3000;
+      console.log(`⏳ Waiting ${delay}ms`);
+      await sleep(delay);
+
+      const tripId = url.split("/").pop();
+      const filename = path.join(outputDir, `uber-trip-${tripId}.pdf`);
 
       await page.pdf({ path: filename, format: "A4" });
-      console.log(`✅ Saved PDF for: ${url}`);
-
-      // random delay 2–4 seconds
-      const wait = 2000 + Math.random() * 2000;
-      await delay(wait);
+      console.log(`✅ Saved: ${filename}`);
     } catch (err) {
-      console.error(`❌ Error on ${url}:`, err.message);
+      console.error(`❌ Failed to process ${url}:`, err.message);
     }
   }
 
   await browser.close();
-}
-
-module.exports = saveTrips;
-
-
+  console.log("🎉 All PDFs generated.");
+})();

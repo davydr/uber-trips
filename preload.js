@@ -1,8 +1,14 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { spawn } = require("child_process");
 
-contextBridge.exposeInMainWorld('electronAPI', {
-    gatherUrls: (month, year) => ipcRenderer.send('gather-urls', month, year),
-    saveTrips: (urls) => ipcRenderer.send('save-trips', urls),
-  });
+contextBridge.exposeInMainWorld("electronAPI", {
+  saveTrips: (urls) => {
+    const cmd = spawn("node", ["puppeteer-runner.js", urls.join(",")]);
+
+    cmd.stdout.on("data", (data) => console.log(`[runner] ${data}`));
+    cmd.stderr.on("data", (data) => console.error(`[runner err] ${data}`));
+    cmd.on("close", (code) => console.log(`PDF generation finished with code ${code}`));
+  }
+});
+
   
 
